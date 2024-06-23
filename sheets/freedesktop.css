@@ -1,0 +1,5 @@
+body {
+  /* `!important` to take precedence */
+  width:750px !important;
+  margin:auto !important;
+}

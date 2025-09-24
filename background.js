@@ -1,43 +1,47 @@
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.action.setBadgeText({
-    text: 'OFF'
-  });
+const api = window.browser || window.chrome;
+
+api.runtime.onInstalled.addListener(() => {
+  api.browserAction.setBadgeText({ text: "OFF" });
 });
 
-
 function getStyleSheet(url) {
-  if (url.startsWith('https://wiki.archlinux.org/')) {
-    return 'arch.css';
-  } else if (url.startsWith('https://www.freedesktop.org/wiki')) {
-    return 'freedesktop.css';
+  if (url.startsWith("https://wiki.archlinux.org/")) {
+    return "arch.css";
+  } else if (url.startsWith("https://www.freedesktop.org/wiki")) {
+    return "freedesktop.css";
+  } else if (url.startsWith("https://ekstrabladet.dk/")) {
+    return "eb.css";
   } else {
     return "default.css";
   }
 }
 
-chrome.action.onClicked.addListener(async (tab) => {
-  const prevState = await chrome.action.getBadgeText({ tabId: tab.id });
-  const nextState = prevState === 'ON' ? 'OFF' : 'ON';
+function toggleCss(tab) {
+  api.browserAction.getBadgeText({ tabId: tab.id }, (prevState) => {
+    const nextState = prevState === "ON" ? "OFF" : "ON";
 
+    api.browserAction.setBadgeText({ tabId: tab.id, text: nextState });
 
-  await chrome.action.setBadgeText({
-    tabId: tab.id,
-    text: nextState
+    const styleSheet = `sheets/${getStyleSheet(tab.url)}`;
+
+    if (nextState === "ON") {
+      api.tabs.insertCSS(tab.id, { file: styleSheet });
+      console.log("Custom CSS injected");
+    } else {
+      api.tabs.removeCSS(tab.id, { file: styleSheet });
+      console.log("Custom CSS removed");
+    }
   });
+}
 
-  style_sheet = `sheets/${getStyleSheet(tab.url)}`;
+api.browserAction.onClicked.addListener(toggleCss);
 
-  if (nextState === 'ON') {
-    await chrome.scripting.insertCSS({
-      files: [style_sheet],
-      target: { tabId: tab.id }
+api.commands.onCommand.addListener((command) => {
+  if (command === "toggle-stylesheet") {
+    api.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        toggleCss(tabs[0]);
+      }
     });
-    console.log('Custom css is injected');
-  } else if (nextState === 'OFF') {
-    await chrome.scripting.removeCSS({
-      files: [style_sheet],
-      target: { tabId: tab.id }
-    });
-    console.log('Custom css is injected');
   }
 });
